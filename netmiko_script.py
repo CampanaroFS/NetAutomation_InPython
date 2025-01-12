@@ -59,10 +59,8 @@ def push_config(device_config, commands):
 
         # Save the configuration
         net_connect.save_config()
-
- 
         print(output)
-        print("Configurations successfully pushed!")
+        print(f"Configurations successfully pushed to {device_config['host']}!")
         # Disconnect automatically handled by the context manager
 
 def open_json_file(file_path='device.json'):
@@ -111,6 +109,8 @@ def main():
 
             # Push configuration to the device
             push_config(cisco_device, all_commands)
+
+            print("All DEVICES ARE SUCCESSFULLY CONFIGURED AND GRE TUNNEL IS CREATED!")
         else:
             print(f"Warning: No configuration found in JSON for {router}")
 
