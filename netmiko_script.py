@@ -4,16 +4,51 @@ import json
 from getpass import getpass
 
 def render_interface(interface_data):
-    # Generate a list of commands for the interface
-    commands = [
-        f"interface {interface_data['interface']}",
-        f"ip address {interface_data['ip']} {interface_data['subnet_mask']}",
-        f"description {interface_data['description']}",
-        f"duplex {interface_data['duplex']}",
-        f"speed {interface_data['speed']}",
-        "no shutdown"
-    ]
+    """Generate a list of commands for the given interface configuration."""
+    commands = []
+    
+    # Add tunnel-specific commands if applicable
+    if interface_data['interface'].startswith("Tunnel"):
+        commands.extend([
+            # GRE Tunnel configuration
+            f"interface {interface_data['interface']}",
+            f"ip address {interface_data['ip_address']} {interface_data['subnet_mask']}",
+            f"bandwidth {interface_data.get('bandwidth', 1000)}",  # Default bandwidth if not provided
+            f"description {interface_data['description']}",
+            f"ip mtu {interface_data.get('mtu', 1400)}",  # Default MTU if not provided
+            f"tunnel source {interface_data['tunnel_src']}",
+            f"tunnel destination {interface_data['tunnel_dst']}",
+        ])
+    else:
+        # General interface configuration
+        commands.extend([
+            f"interface {interface_data['interface']}",
+            f"ip address {interface_data['ip_address']} {interface_data['subnet_mask']}",
+            f"description {interface_data['description']}",
+        ])
+
+        # Add optional configurations if available
+        if 'duplex' in interface_data:
+            commands.append(f"duplex {interface_data['duplex']}")
+        if 'speed' in interface_data:
+            commands.append(f"speed {interface_data['speed']}")
+    
+    # Finalize with `no shutdown`
+    commands.append("no shutdown")
+    
     return commands
+
+
+def render_routing(router_data):
+    """Generate routing commands based on router configuration."""
+    return [
+        f"ip route 0.0.0.0 0.0.0.0 {router_data['ip_route']}",
+        "router ospf 1",
+        f"router-id {router_data['router-id']}",
+        f"network {router_data['network_1']}",
+        f"network {router_data['network_2']}",
+    ]
+
 
 def push_config(device_config, commands):
     print(f"Configuring device: {device_config['host']}")
@@ -21,6 +56,11 @@ def push_config(device_config, commands):
     with ConnectHandler(**device_config) as net_connect:
         net_connect.enable()
         output = net_connect.send_config_set(commands)
+
+        # Save the configuration
+        net_connect.save_config()
+
+ 
         print(output)
         print("Configurations successfully pushed!")
         # Disconnect automatically handled by the context manager
@@ -38,29 +78,41 @@ def open_json_file(file_path='device.json'):
         exit(1)
 
 def main():
-    # Get user credentials and device details
-    host = input("Enter the device IP address: ")
+    routers = {"R1": "192.168.15.150", 
+               "R2": "192.168.15.151", 
+               "R3": "192.168.15.152"
+               }
+    # Get user credentials
     username = input("Enter your username: ")
     password = getpass("Enter your password: ")
-    secret = getpass("Enter your enable secret: ")
+    secret = password
 
-    # Define the device configuration
-    cisco_device = {
-        "device_type": "cisco_ios",
-        "host": host,
-        "username": username,
-        "password": password,
-        "secret": secret,
-    }
-
-    # Load interface data from JSON
+     # Load interface data from JSON
     data = open_json_file()
-    all_commands = []
-    for interface in data:
-        all_commands.extend(render_interface(interface))
 
-    # Push configuration to the device
-    push_config(cisco_device, all_commands)
+    for router, ip_address in routers.items():
+        if router in data: # Check if the router exists in the JSON file
+            # Define the device configuration
+            cisco_device = {
+                "device_type": "cisco_ios",
+                "host": ip_address,
+                "username": username,
+                "password": password,
+                "secret": secret,
+            }
+
+             # Generate all commands for the current router
+            all_commands = []
+            for interface in data[router]:
+                if 'interface' in interface: # Interface-specific commands
+                    all_commands.extend(render_interface(interface))
+                elif 'router-id' in interface: # Routing commands
+                    all_commands.extend(render_routing(interface))
+
+            # Push configuration to the device
+            push_config(cisco_device, all_commands)
+        else:
+            print(f"Warning: No configuration found in JSON for {router}")
 
 if __name__ == "__main__":
     main()
