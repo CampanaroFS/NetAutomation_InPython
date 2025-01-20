@@ -22,6 +22,7 @@ def render_interface(interface_data):
     else:
         # General interface configuration
         commands.extend([
+            f"no cdp run",
             f"interface {interface_data['interface']}",
             f"ip address {interface_data['ip_address']} {interface_data['subnet_mask']}",
             f"description {interface_data['description']}",
@@ -76,9 +77,11 @@ def open_json_file(file_path='device.json'):
         exit(1)
 
 def main():
+    # Dict of devices
     routers = {"R1": "192.168.15.150", 
                "R2": "192.168.15.151", 
-               "R3": "192.168.15.152"
+               "ISP1": "192.168.15.152",
+               "ISP2": "192.168.15.153"
                }
     # Get user credentials
     username = input("Enter your username: ")
