@@ -112,10 +112,10 @@ def main():
 
             # Push configuration to the device
             push_config(cisco_device, all_commands)
-
-            print("All DEVICES ARE SUCCESSFULLY CONFIGURED AND GRE TUNNEL IS CREATED!")
         else:
             print(f"Warning: No configuration found in JSON for {router}")
+
+    print("All DEVICES ARE SUCCESSFULLY CONFIGURED AND GRE TUNNEL IS CREATED!")
 
 if __name__ == "__main__":
     main()
